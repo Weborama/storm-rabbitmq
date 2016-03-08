@@ -1,13 +1,5 @@
 package io.latent.storm.rabbitmq;
 
-import io.latent.storm.rabbitmq.config.ConnectionConfig;
-
-import java.io.IOException;
-import java.io.Serializable;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.rabbitmq.client.Address;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -16,9 +8,17 @@ import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownListener;
 import com.rabbitmq.client.ShutdownSignalException;
+import io.latent.storm.rabbitmq.config.ConnectionConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.concurrent.TimeoutException;
 
 /**
- * An abstraction on RabbitMQ client API to encapsulate interaction with RabbitMQ and de-couple Storm API from RabbitMQ API.
+ * An abstraction on RabbitMQ client API to encapsulate interaction with RabbitMQ and de-couple
+ * Storm API from RabbitMQ API.
  *
  * @author peter@latent.io
  */
@@ -40,11 +40,11 @@ public class RabbitMQConsumer implements Serializable {
   private String consumerTag;
 
   public RabbitMQConsumer(ConnectionConfig connectionConfig,
-                          int prefetchCount,
-                          String queueName,
-                          boolean requeueOnFail,
-                          Declarator declarator,
-                          ErrorReporter errorReporter) {
+      int prefetchCount,
+      String queueName,
+      boolean requeueOnFail,
+      Declarator declarator,
+      ErrorReporter errorReporter) {
     this.connectionFactory = connectionConfig.asConnectionFactory();
     this.highAvailabilityHosts = connectionConfig.getHighAvailabilityHosts().toAddresses();
     this.prefetchCount = prefetchCount;
@@ -58,7 +58,8 @@ public class RabbitMQConsumer implements Serializable {
 
   public Message nextMessage() {
     reinitIfNecessary();
-    if (consumerTag == null || consumer == null) return Message.NONE;
+    if (consumerTag == null || consumer == null)
+      return Message.NONE;
     try {
       return Message.forDelivery(consumer.nextDelivery(MS_WAIT_FOR_MESSAGE));
     } catch (ShutdownSignalException sse) {
@@ -71,7 +72,9 @@ public class RabbitMQConsumer implements Serializable {
       logger.debug("interruepted while waiting for message", ie);
       return Message.NONE;
     } catch (ConsumerCancelledException cce) {
-      /* if the queue on the broker was deleted or node in the cluster containing the queue failed */
+      /*
+       * if the queue on the broker was deleted or node in the cluster containing the queue failed
+       */
       reset();
       logger.error("consumer got cancelled while attempting to get next message", cce);
       reporter.reportError(cce);
@@ -155,7 +158,8 @@ public class RabbitMQConsumer implements Serializable {
   public void close() {
     try {
       if (channel != null && channel.isOpen()) {
-        if (consumerTag != null) channel.basicCancel(consumerTag);
+        if (consumerTag != null)
+          channel.basicCancel(consumerTag);
         channel.close();
       }
     } catch (Exception e) {
@@ -184,10 +188,10 @@ public class RabbitMQConsumer implements Serializable {
     }
   }
 
-  private Connection createConnection() throws IOException {
-    Connection connection = highAvailabilityHosts == null || highAvailabilityHosts.length == 0 
-          ? connectionFactory.newConnection() 
-          : connectionFactory.newConnection(highAvailabilityHosts);
+  private Connection createConnection() throws IOException, TimeoutException {
+    Connection connection = highAvailabilityHosts == null || highAvailabilityHosts.length == 0
+        ? connectionFactory.newConnection()
+        : connectionFactory.newConnection(highAvailabilityHosts);
     connection.addShutdownListener(new ShutdownListener() {
       @Override
       public void shutdownCompleted(ShutdownSignalException cause) {
